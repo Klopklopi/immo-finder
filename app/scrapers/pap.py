@@ -34,7 +34,6 @@ class Pap(BaseScraper):
         url_parts = [site_base, search_type, settings.pap.PAP_SEARCH_LOCATION, price_range, min_size, str(self._page)]
         url_parts = [part for part in url_parts if part]  # Remove empty strings
         url = '-'.join(url_parts)
-        print(url)
         return url
 
     def _has_next_page(self, root):
@@ -48,42 +47,51 @@ class Pap(BaseScraper):
             return True, url
 
     def _get_offers(self, root):
-        return root.find_all(lambda tag: tag.has_attr('class') and tag['class'] == ['item-title'])
+        return root.find_all(lambda tag: tag.has_attr('class') and 'search-list-item-alt' in tag['class'])
 
 # region fill an offer
     def _get_offer_object(self, r_offer):
-        url = '/'.join([self._base_site_url, r_offer['href']])
-        if 'local-commercial' in url or 'local-d-activite' in url:
-            return CommerceOffer()
-        else:
-            return ApartmentOffer()
+        item_title = r_offer.find(lambda tag: tag.has_attr('class') and 'item-title' in tag['class'])
+        if item_title and item_title.has_attr('href'):
+            url = '/'.join([self._base_site_url, item_title['href']])
+            if 'local-commercial' in url or 'local-d-activite' in url:
+                return CommerceOffer()
+            else:
+                return ApartmentOffer()
+        return ApartmentOffer()
 
     def _is_valid_offer(self, offer, r_offer):
-        return r_offer.has_attr('name')
+        item_title = r_offer.find(lambda tag: tag.has_attr('class') and 'item-title' in tag['class'])
+        return item_title and item_title.has_attr('name')
 
     def _prepare_offer_filling(self, offer, r_offer):
         result = None
-        href = r_offer['href']
-        if href.startswith('/'):
-            href = href[1:]  # Remove leading slash to avoid double slash
-        url = '/'.join([self._base_site_url, href])
-        offer.details_url = url
-        web_page = self._load_web_page(url)
-        if web_page is not None:
-            res = web_page.find_all(lambda tag: tag.has_attr('class') and tag['class'] == ['details-item'])
-            if res is not None and len(res) > 0:
-                result = res[0]
+        item_title = r_offer.find(lambda tag: tag.has_attr('class') and 'item-title' in tag['class'])
+        if item_title and item_title.has_attr('href'):
+            href = item_title['href']
+            if href.startswith('/'):
+                href = href[1:]  # Remove leading slash to avoid double slash
+            url = '/'.join([self._base_site_url, href])
+            offer.details_url = url
+            web_page = self._load_web_page(url)
+            if web_page is not None:
+                res = web_page.find_all(lambda tag: tag.has_attr('class') and tag['class'] == ['details-item'])
+                if res is not None and len(res) > 0:
+                    result = res[0]
         return result
 
     def _clean_offer_filling(self, offer, r_offer, payload):
         pass
 
     def get_details_url(self, offer, r_offer, payload):
-        href = r_offer['href']
-        if href.startswith('/'):
-            href = href[1:]  # Remove leading slash to avoid double slash
-        url = '/'.join([self._base_site_url, href])
-        return url
+        item_title = r_offer.find(lambda tag: tag.has_attr('class') and 'item-title' in tag['class'])
+        if item_title and item_title.has_attr('href'):
+            href = item_title['href']
+            if href.startswith('/'):
+                href = href[1:]  # Remove leading slash to avoid double slash
+            url = '/'.join([self._base_site_url, href])
+            return url
+        return None
 
     def get_title(self, offer, r_offer, payload):
         title = None
@@ -103,17 +111,24 @@ class Pap(BaseScraper):
         return desc
 
     def get_id(self, offer, r_offer, payload):
-        return r_offer['name']
+        item_title = r_offer.find(lambda tag: tag.has_attr('class') and 'item-title' in tag['class'])
+        if item_title and item_title.has_attr('name'):
+            return item_title['name']
+        return None
 
     def get_price(self, offer, r_offer, payload):
         price = None
-        res = r_offer.find_all(lambda tag: tag.has_attr('class') and tag['class'] == ['item-price'])
-        if res is not None and len(res) > 0:
-            price = ''.join(c for c in res[0].text.replace('.','') if c in ['0','1','2','3','4','5','6','7','8','9','0'])
-            price = price.strip()
+        item_title = r_offer.find(lambda tag: tag.has_attr('class') and 'item-title' in tag['class'])
+        if item_title:
+            res = item_title.find_all(lambda tag: tag.has_attr('class') and 'item-price' in tag['class'])
+            if res is not None and len(res) > 0:
+                price = ''.join(c for c in res[0].text.replace('.','') if c in ['0','1','2','3','4','5','6','7','8','9','0'])
+                price = price.strip()
         return price
 
     def __get_surface_from_field(self, field):
+        if field is None:
+            return None
         content = field.strip().replace('\t', ' ').replace('\n', ' ')
         surface = None
         high_index = content.find('m²')
