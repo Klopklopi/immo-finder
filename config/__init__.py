@@ -1,4 +1,4 @@
 
-from . import core, slack
+from . import core
 from . import filtering
 from . import pap, bienici, seloger

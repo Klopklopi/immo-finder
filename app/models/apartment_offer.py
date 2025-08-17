@@ -1,7 +1,3 @@
-from datetime import datetime
-
-import dateutil.parser
-
 from app.models.base_offer import BaseOffer
 
 

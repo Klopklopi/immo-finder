@@ -1,6 +1,5 @@
 from datetime import datetime
 
-import dateutil.parser
 
 
 class BaseOffer(object):
@@ -35,8 +34,7 @@ class BaseOffer(object):
                 self.__created_at = datetime.fromtimestamp(value)
             elif isinstance(value, str) and value.isdigit():
                 self.__created_at = datetime.fromtimestamp(int(value))
-            else:
-                self.__created_at = dateutil.parser.parse(value)
+
 
     @property
     def price(self):

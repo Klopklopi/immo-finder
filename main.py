@@ -1,7 +1,7 @@
 import time
 import logging
 from app.utils import logger as log
-from app.scrapers import *
+from app.scrapers import seloger
 
 def timed_job():
     log.init_logging()

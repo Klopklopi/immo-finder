@@ -1,15 +1,14 @@
 import logging
-import sys
 import time
-import traceback
 from weakref import WeakValueDictionary
 
 
 import bs4
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
-from app.services import slack
-from app.utils import db
 
 
 class BaseScraper(object):
@@ -20,11 +19,21 @@ class BaseScraper(object):
     def __init__(self):
         self._instances[id(self)] = self
         self.logger = logging.getLogger()
-        self.__browser = webdriver.PhantomJS(service_args=['--load-images=no', '--disk-cache=true'])
-        # self.__browser = webdriver.Chrome()
-        # self.__browser.set_window_size(1280, 1024)
-        # self.__browser.implicitly_wait(10)
-        # self.__browser.set_page_load_timeout(60)
+        
+        # Set up Chrome options for headless browsing
+        chrome_options = Options()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-images')
+        chrome_options.add_argument('--disable-javascript')
+        chrome_options.add_argument('--window-size=1280,1024')
+        
+        # Initialize Chrome WebDriver with automatic driver management
+        service = Service(ChromeDriverManager().install())
+        self.__browser = webdriver.Chrome(service=service, options=chrome_options)
+        self.__browser.implicitly_wait(10)
+        self.__browser.set_page_load_timeout(60)
 
     def __del__(self):
         self.__browser.quit()
@@ -111,7 +120,7 @@ class BaseScraper(object):
         self.logger.info("GET request: {}".format(url))
         result = None
         try:
-            result = bs4.BeautifulSoup(html, 'html5lib')
+            result = bs4.BeautifulSoup(html, 'html.parser')
         except Exception as e:
             self.logger.error("Failed to load webpage {}: {}".format(url, str(e)))
         finally:
@@ -147,21 +156,9 @@ class BaseScraper(object):
     def scrape(self):
         """ Runs the datasource. """
         self.logger.info("{}: Retrieving offers from {}...".format(time.ctime(), self.get_datasource_name()))
-        try:
-            total_count = 0
-            for offers in self._next_page():
-                for o in offers:
-                    if db.Offer.is_new_offer(o, self.get_datasource_name()):
-                        db.Offer.persist_offer(o, self.get_datasource_name())
-                    # if db.Offer.is_new_offer(o, self.get_datasource_name()) and filter.Filter.apply(o) is False:
-                    #     db.Offer.persist_offer(o, self.get_datasource_name())
-                        slack.Slack.post_message(o)
-                        total_count += 1
-        except Exception as exc:
-            self.logger.error("Error with the scraping:", sys.exc_info()[0])
-            traceback.print_exc()
-        else:
-            self.logger.info("{}: Got {} results from {}".format(time.ctime(), total_count, self.get_datasource_name()))
+        # print all the offers
+        for offer in self._next_page():
+            self.logger.info("Found offer: {}".format(offer))
 
 # endregion
 

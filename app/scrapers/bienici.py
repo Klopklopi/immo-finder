@@ -3,7 +3,6 @@ import unicodedata
 from urllib.parse import urlparse, urlencode
 
 from app.models.apartment_offer import ApartmentOffer
-from app.models.commerce_offer import CommerceOffer
 from app.scrapers.base_scraper import BaseScraper
 
 

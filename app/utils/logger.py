@@ -1,5 +1,4 @@
 import logging
-import settings
 
 def init_logging():
     log = logging.getLogger()
@@ -9,12 +8,12 @@ def init_logging():
     handler.setFormatter(formatter)
     log.addHandler(handler)
     level = logging.INFO
-    if settings.core.LOGGING_LEVEL == 'DEBUG':
-        level = logging.DEBUG
-    elif settings.core.LOGGING_LEVEL == 'INFO':
-        level = logging.INFO
-    elif settings.core.LOGGING_LEVEL == 'WARNING':
-        level = logging.WARNING
-    elif settings.core.LOGGING_LEVEL == 'ERROR':
-        level = logging.ERROR
+    # if settings.core.LOGGING_LEVEL == 'DEBUG':
+    #     level = logging.DEBUG
+    # elif settings.core.LOGGING_LEVEL == 'INFO':
+    #     level = logging.INFO
+    # elif settings.core.LOGGING_LEVEL == 'WARNING':
+    #     level = logging.WARNING
+    # elif settings.core.LOGGING_LEVEL == 'ERROR':
+    #     level = logging.ERROR
     log.setLevel(level)
