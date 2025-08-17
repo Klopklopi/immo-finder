@@ -10,12 +10,13 @@ class Pap(BaseScraper):
     def __init__(self):
         super().__init__()
         self._base_site_url = 'https://www.pap.fr'
-        self._base_search_url = 'annonce/vente'
+        self._base_search_url = 'annonce/location'
         self._page = 1
 
     def _get_search_url(self):
+        print("Building search URL...")
         if settings.filtering.MIN_PRICE > 0 and settings.filtering.MAX_PRICE == 0:
-            price_range = "a-partir-de-{}-euros".format(settings.filtering.MIN_SIZE)
+            price_range = "a-partir-de-{}-euros".format(settings.filtering.MIN_PRICE)
         elif settings.filtering.MIN_PRICE == 0 and settings.filtering.MAX_PRICE > 0:
             price_range = "jusqu-a-{}-euros".format(settings.filtering.MAX_PRICE)
         elif settings.filtering.MIN_PRICE > 0 and settings.filtering.MAX_PRICE > 0:
@@ -28,7 +29,12 @@ class Pap(BaseScraper):
             min_size = ''
         search_type = '-'.join(settings.pap.PAP_SEARCH_TYPE)
         site_base = '/'.join([self._base_site_url, self._base_search_url])
-        url =  '-'.join([site_base, search_type, settings.pap.PAP_SEARCH_LOCATION, price_range, min_size, str(self._page)])
+        
+        # Build URL components, filtering out empty strings to avoid consecutive dashes
+        url_parts = [site_base, search_type, settings.pap.PAP_SEARCH_LOCATION, price_range, min_size, str(self._page)]
+        url_parts = [part for part in url_parts if part]  # Remove empty strings
+        url = '-'.join(url_parts)
+        print(url)
         return url
 
     def _has_next_page(self, root):
@@ -57,7 +63,10 @@ class Pap(BaseScraper):
 
     def _prepare_offer_filling(self, offer, r_offer):
         result = None
-        url = '/'.join([self._base_site_url, r_offer['href']])
+        href = r_offer['href']
+        if href.startswith('/'):
+            href = href[1:]  # Remove leading slash to avoid double slash
+        url = '/'.join([self._base_site_url, href])
         offer.details_url = url
         web_page = self._load_web_page(url)
         if web_page is not None:
@@ -70,14 +79,18 @@ class Pap(BaseScraper):
         pass
 
     def get_details_url(self, offer, r_offer, payload):
-        url = '/'.join([self._base_site_url, r_offer['href']])
+        href = r_offer['href']
+        if href.startswith('/'):
+            href = href[1:]  # Remove leading slash to avoid double slash
+        url = '/'.join([self._base_site_url, href])
         return url
 
     def get_title(self, offer, r_offer, payload):
         title = None
-        res = payload.find_all(lambda tag: tag.has_attr('class') and tag['class'] == ['h1'])
-        if res is not None and len(res) > 0:
-            title = res[0].text.strip()
+        if payload is not None:
+            res = payload.find_all(lambda tag: tag.has_attr('class') and tag['class'] == ['h1'])
+            if res is not None and len(res) > 0:
+                title = res[0].text.strip()
         return title
 
     def get_description(self, offer, r_offer, payload):

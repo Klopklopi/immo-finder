@@ -1,5 +1,8 @@
 import logging
+from selenium_stealth import stealth
+
 import time
+import random
 from weakref import WeakValueDictionary
 
 
@@ -20,18 +23,35 @@ class BaseScraper(object):
         self._instances[id(self)] = self
         self.logger = logging.getLogger()
         
-        # Set up Chrome options for headless browsing
+        # Set up Chrome options for headless browsing with anti-detection
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_argument('--disable-extensions')
+        chrome_options.add_argument('--disable-plugins')
         chrome_options.add_argument('--disable-images')
-        chrome_options.add_argument('--disable-javascript')
-        chrome_options.add_argument('--window-size=1280,1024')
+        chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
         
         # Initialize Chrome WebDriver with automatic driver management
         service = Service(ChromeDriverManager().install())
         self.__browser = webdriver.Chrome(service=service, options=chrome_options)
+
+        stealth(self.__browser,
+                languages=["en-US", "en"],
+                vendor="Google Inc.",
+                platform="Win32",
+                webgl_vendor="Intel Inc.",
+                renderer="Intel Iris OpenGL Engine",
+                fix_hairline=True,
+                )
+        # Hide webdriver properties
+        self.__browser.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        
         self.__browser.implicitly_wait(10)
         self.__browser.set_page_load_timeout(60)
 
@@ -115,7 +135,15 @@ class BaseScraper(object):
          Retrieves results and returns a ready to use return object
          :return BeautifulSoup instance.
         """
+        # Add random delay to avoid being detected as bot
+        delay = random.uniform(2, 5)
+        time.sleep(delay)
+        
         self.__browser.get(url)  # This does not throw an exception if it got a 404
+        
+        # Wait a bit more for JavaScript to load
+        time.sleep(random.uniform(1, 3))
+        
         html = self.__browser.page_source
         self.logger.info("GET request: {}".format(url))
         result = None
@@ -157,8 +185,6 @@ class BaseScraper(object):
         """ Runs the datasource. """
         self.logger.info("{}: Retrieving offers from {}...".format(time.ctime(), self.get_datasource_name()))
         # print all the offers
-        for offer in self._next_page():
-            self.logger.info("Found offer: {}".format(offer))
 
 # endregion
 
